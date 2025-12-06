@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGrabber - Download Website Source Code</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.8); }
+        }
+        .pulse-glow { animation: pulse-glow 2s infinite; }
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .slide-in { animation: slide-in 0.3s ease-out forwards; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg text-white">
+    <!-- Header -->
+    <header class="py-6 px-4">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-download text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold">WebGrabber</h1>
+                    <p class="text-indigo-300 text-sm">Website Source Downloader</p>
+                </div>
+            </div>
+            <a href="https://github.com/Piloteyes380" target="_blank" class="text-indigo-300 hover:text-white transition">
+                <i class="fab fa-github text-2xl"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 py-12">
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <h2 class="text-5xl font-bold mb-4 bg-gradient-to-r from-white to-indigo-300 bg-clip-text text-transparent">
+                Download Any Website's Source Code
+            </h2>
+            <p class="text-xl text-indigo-200 max-w-2xl mx-auto">
+                Enter a URL to fetch HTML, CSS, JavaScript, images, and fonts. Everything packaged in a neat ZIP file.
+            </p>
+        </div>
+
+        <!-- URL Input Card -->
+        <div class="glass rounded-2xl p-8 mb-8">
+            <form id="urlForm" class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1 relative">
+                    <i class="fas fa-globe absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400"></i>
+                    <input 
+                        type="url" 
+                        id="urlInput" 
+                        placeholder="https://example.com" 
+                        required
+                        class="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-lg"
+                    >
+                </div>
+                <button 
+                    type="submit" 
+                    id="downloadBtn"
+                    class="px-8 py-4 bg-indigo-500 hover:bg-indigo-600 rounded-xl font-semibold text-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                >
+                    <i class="fas fa-download"></i>
+                    <span>Download</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="progressSection" class="hidden glass rounded-2xl p-8 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-semibold flex items-center gap-2">
+                    <i class="fas fa-spinner fa-spin text-indigo-400" id="spinnerIcon"></i>
+                    <span id="statusText">Initializing...</span>
+                </h3>
+                <span id="progressPercent" class="text-2xl font-bold text-indigo-300">0%</span>
+            </div>
+            <div class="w-full h-4 bg-white/10 rounded-full overflow-hidden">
+                <div id="progressBar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="currentTask" class="text-indigo-300 mt-3 text-sm"></p>
+        </div>
+
+        <!-- Error Section -->
+        <div id="errorSection" class="hidden glass rounded-2xl p-8 mb-8 border-2 border-red-500/50 bg-red-500/10">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold text-red-300 mb-2">Error Occurred</h3>
+                    <p id="errorMessage" class="text-red-200"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Section -->
+        <div id="successSection" class="hidden glass rounded-2xl p-8 mb-8 border-2 border-green-500/50 bg-green-500/10">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check-circle text-green-400 text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-green-300">Download Ready!</h3>
+                        <p class="text-green-200">Your ZIP file is ready. Click the button to download.</p>
+                    </div>
+                </div>
+                <button 
+                    id="manualDownloadBtn"
+                    class="px-6 py-3 bg-green-500 hover:bg-green-600 rounded-xl font-semibold transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                    <i class="fas fa-download"></i>
+                    <span>Download ZIP</span>
+                </button>
+            </div>
+            <p id="zipInfo" class="text-green-200 text-sm mt-3"></p>
+        </div>
+
+        <!-- Files List -->
+        <div id="filesSection" class="hidden glass rounded-2xl p-8">
+            <h3 class="text-xl font-semibold mb-6 flex items-center gap-2">
+                <i class="fas fa-folder-open text-indigo-400"></i>
+                Downloaded Files
+                <span id="fileCount" class="text-sm bg-indigo-500 px-3 py-1 rounded-full ml-2">0</span>
+            </h3>
+            <div id="filesList" class="space-y-2 max-h-96 overflow-y-auto pr-2"></div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="grid md:grid-cols-3 gap-6 mt-12">
+            <div class="glass rounded-xl p-6 text-center">
+                <div class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-code text-3xl text-indigo-400"></i>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">Full Source Code</h3>
+                <p class="text-indigo-300 text-sm">Downloads HTML, CSS, and JavaScript files with proper structure.</p>
+            </div>
+            <div class="glass rounded-xl p-6 text-center">
+                <div class="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-images text-3xl text-purple-400"></i>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">Assets Included</h3>
+                <p class="text-indigo-300 text-sm">Images, fonts, and other media files are packaged together.</p>
+            </div>
+            <div class="glass rounded-xl p-6 text-center">
+                <div class="w-16 h-16 bg-pink-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-file-archive text-3xl text-pink-400"></i>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">ZIP Package</h3>
+                <p class="text-indigo-300 text-sm">Everything neatly organized in a downloadable ZIP file.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-8 px-4 mt-12 border-t border-white/10">
+        <div class="max-w-6xl mx-auto text-center text-indigo-300 text-sm">
+            <p>⚠️ Note: Some websites may block requests due to CORS. This tool works best with public websites.</p>
+            <p class="mt-2">Made with <i class="fas fa-heart text-red-400"></i> by Badru Said Nsubuga</p>
+        </div>
+    </footer>
+
+    <script>
+        // CORS Proxy options
+        const CORS_PROXIES = [
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+        ];
+
+        let currentProxy = 0;
+        let zip;
+        let downloadedFiles = [];
+        let totalTasks = 0;
+        let completedTasks = 0;
+        let generatedZipBlob = null;
+        let generatedZipFilename = '';
+
+        // DOM Elements
+        const urlForm = document.getElementById('urlForm');
+        const urlInput = document.getElementById('urlInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const statusText = document.getElementById('statusText');
+        const currentTask = document.getElementById('currentTask');
+        const spinnerIcon = document.getElementById('spinnerIcon');
+        const errorSection = document.getElementById('errorSection');
+        const errorMessage = document.getElementById('errorMessage');
+        const successSection = document.getElementById('successSection');
+        const filesSection = document.getElementById('filesSection');
+        const filesList = document.getElementById('filesList');
+        const fileCount = document.getElementById('fileCount');
+        const manualDownloadBtn = document.getElementById('manualDownloadBtn');
+        const zipInfo = document.getElementById('zipInfo');
+
+        // Reliable download function using anchor element
+        function downloadBlob(blob, filename) {
+            // Create a blob URL
+            const url = URL.createObjectURL(blob);
+            
+            // Create a temporary anchor element
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            
+            // Append to body, click, and remove
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up after a short delay
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+
+        // Manual download button handler
+        manualDownloadBtn.addEventListener('click', () => {
+            if (generatedZipBlob) {
+                downloadBlob(generatedZipBlob, generatedZipFilename);
+            }
+        });
+
+        // Utility functions
+        function showError(message) {
+            errorSection.classList.remove('hidden');
+            errorMessage.textContent = message;
+            progressSection.classList.add('hidden');
+        }
+
+        function hideError() {
+            errorSection.classList.add('hidden');
+        }
+
+        function updateProgress(percent, status, task = '') {
+            progressBar.style.width = `${percent}%`;
+            progressPercent.textContent = `${Math.round(percent)}%`;
+            statusText.textContent = status;
+            currentTask.textContent = task;
+        }
+
+        function addFileToList(filename, size, type) {
+            const icons = {
+                'html': 'fa-file-code text-orange-400',
+                'css': 'fa-file-code text-blue-400',
+                'js': 'fa-file-code text-yellow-400',
+                'image': 'fa-file-image text-green-400',
+                'font': 'fa-font text-purple-400',
+                'other': 'fa-file text-gray-400'
+            };
+
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-3 p-3 bg-white/5 rounded-lg slide-in';
+            div.innerHTML = `
+                <i class="fas ${icons[type] || icons.other}"></i>
+                <span class="flex-1 truncate text-sm">${filename}</span>
+                <span class="text-xs text-indigo-300">${formatSize(size)}</span>
+            `;
+            filesList.appendChild(div);
+            fileCount.textContent = filesList.children.length;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function getAbsoluteUrl(base, relative) {
+            try {
+                return new URL(relative, base).href;
+            } catch {
+                return null;
+            }
+        }
+
+        function getFilenameFromUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                let path = urlObj.pathname;
+                if (path.endsWith('/')) path += 'index.html';
+                if (!path.includes('.')) path += '.html';
+                return path.substring(1) || 'index.html';
+            } catch {
+                return 'file_' + Date.now();
+            }
+        }
+
+        async function fetchWithProxy(url, binary = false) {
+            for (let i = 0; i < CORS_PROXIES.length; i++) {
+                const proxyIndex = (currentProxy + i) % CORS_PROXIES.length;
+                try {
+                    const proxyUrl = CORS_PROXIES[proxyIndex] + encodeURIComponent(url);
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        currentProxy = proxyIndex;
+                        if (binary) {
+                            return await response.arrayBuffer();
+                        }
+                        return await response.text();
+                    }
+                } catch (e) {
+                    console.warn(`Proxy ${proxyIndex} failed:`, e);
+                }
+            }
+            throw new Error(`Failed to fetch: ${url}`);
+        }
+
+        function extractResources(html, baseUrl) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const resources = {
+                css: [],
+                js: [],
+                images: [],
+                fonts: []
+            };
+
+            // Extract CSS links
+            doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href) {
+                    const absUrl = getAbsoluteUrl(baseUrl, href);
+                    if (absUrl) resources.css.push(absUrl);
+                }
+            });
+
+            // Extract JavaScript
+            doc.querySelectorAll('script[src]').forEach(script => {
+                const src = script.getAttribute('src');
+                if (src) {
+                    const absUrl = getAbsoluteUrl(baseUrl, src);
+                    if (absUrl) resources.js.push(absUrl);
+                }
+            });
+
+            // Extract images
+            doc.querySelectorAll('img[src]').forEach(img => {
+                const src = img.getAttribute('src');
+                if (src && !src.startsWith('data:')) {
+                    const absUrl = getAbsoluteUrl(baseUrl, src);
+                    if (absUrl) resources.images.push(absUrl);
+                }
+            });
+
+            // Extract background images from inline styles
+            doc.querySelectorAll('[style*="url"]').forEach(el => {
+                const style = el.getAttribute('style');
+                const matches = style.match(/url\(['"]?([^'")\s]+)['"]?\)/g);
+                if (matches) {
+                    matches.forEach(match => {
+                        const url = match.replace(/url\(['"]?|['"]?\)/g, '');
+                        if (!url.startsWith('data:')) {
+                            const absUrl = getAbsoluteUrl(baseUrl, url);
+                            if (absUrl) resources.images.push(absUrl);
+                        }
+                    });
+                }
+            });
+
+            // Extract favicon
+            doc.querySelectorAll('link[rel*="icon"]').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href) {
+                    const absUrl = getAbsoluteUrl(baseUrl, href);
+                    if (absUrl) resources.images.push(absUrl);
+                }
+            });
+
+            // Extract fonts from link preloads
+            doc.querySelectorAll('link[as="font"]').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href) {
+                    const absUrl = getAbsoluteUrl(baseUrl, href);
+                    if (absUrl) resources.fonts.push(absUrl);
+                }
+            });
+
+            // Remove duplicates
+            Object.keys(resources).forEach(key => {
+                resources[key] = [...new Set(resources[key])];
+            });
+
+            return resources;
+        }
+
+        function extractCssResources(css, baseUrl) {
+            const resources = { images: [], fonts: [] };
+            
+            // Extract url() references
+            const urlMatches = css.matchAll(/url\(['"]?([^'")\s]+)['"]?\)/g);
+            for (const match of urlMatches) {
+                const url = match[1];
+                if (!url.startsWith('data:')) {
+                    const absUrl = getAbsoluteUrl(baseUrl, url);
+                    if (absUrl) {
+                        if (url.match(/\.(woff2?|ttf|otf|eot)(\?|$)/i)) {
+                            resources.fonts.push(absUrl);
+                        } else {
+                            resources.images.push(absUrl);
+                        }
+                    }
+                }
+            }
+
+            return resources;
+        }
+
+        async function downloadResource(url, filename, type, binary = false) {
+            try {
+                const content = await fetchWithProxy(url, binary);
+                if (binary) {
+                    zip.file(filename, content);
+                    addFileToList(filename, content.byteLength, type);
+                } else {
+                    const encoder = new TextEncoder();
+                    const size = encoder.encode(content).length;
+                    zip.file(filename, content);
+                    addFileToList(filename, size, type);
+                }
+                return content;
+            } catch (e) {
+                console.warn(`Failed to download: ${url}`, e);
+                return null;
+            }
+        }
+
+        async function processWebsite(url) {
+            zip = new JSZip();
+            downloadedFiles = [];
+            filesList.innerHTML = '';
+            filesSection.classList.remove('hidden');
+
+            const baseUrl = new URL(url);
+            const hostname = baseUrl.hostname.replace(/\./g, '_');
+
+            try {
+                // Step 1: Fetch main HTML
+                updateProgress(5, 'Fetching main page...', url);
+                const html = await fetchWithProxy(url);
+                
+                // Save HTML
+                zip.file('index.html', html);
+                addFileToList('index.html', new TextEncoder().encode(html).length, 'html');
+
+                // Step 2: Parse and extract resources
+                updateProgress(15, 'Analyzing page structure...');
+                const resources = extractResources(html, url);
+                
+                totalTasks = resources.css.length + resources.js.length + 
+                            resources.images.length + resources.fonts.length;
+                completedTasks = 0;
+
+                // Step 3: Download CSS files
+                updateProgress(20, 'Downloading stylesheets...');
+                const cssFolder = zip.folder('css');
+                for (let i = 0; i < resources.css.length; i++) {
+                    const cssUrl = resources.css[i];
+                    const filename = `style_${i + 1}.css`;
+                    updateProgress(
+                        20 + (15 * (i + 1) / Math.max(resources.css.length, 1)),
+                        'Downloading stylesheets...',
+                        cssUrl
+                    );
+                    
+                    const cssContent = await downloadResource(cssUrl, `css/${filename}`, 'css');
+                    
+                    // Extract resources from CSS
+                    if (cssContent) {
+                        const cssResources = extractCssResources(cssContent, cssUrl);
+                        resources.images.push(...cssResources.images);
+                        resources.fonts.push(...cssResources.fonts);
+                    }
+                    completedTasks++;
+                }
+
+                // Remove duplicates again after CSS parsing
+                resources.images = [...new Set(resources.images)];
+                resources.fonts = [...new Set(resources.fonts)];
+
+                // Step 4: Download JavaScript files
+                updateProgress(35, 'Downloading scripts...');
+                const jsFolder = zip.folder('js');
+                for (let i = 0; i < resources.js.length; i++) {
+                    const jsUrl = resources.js[i];
+                    const filename = `script_${i + 1}.js`;
+                    updateProgress(
+                        35 + (15 * (i + 1) / Math.max(resources.js.length, 1)),
+                        'Downloading scripts...',
+                        jsUrl
+                    );
+                    await downloadResource(jsUrl, `js/${filename}`, 'js');
+                    completedTasks++;
+                }
+
+                // Step 5: Download images
+                updateProgress(50, 'Downloading images...');
+                const imgFolder = zip.folder('images');
+                for (let i = 0; i < resources.images.length; i++) {
+                    const imgUrl = resources.images[i];
+                    const urlPath = new URL(imgUrl).pathname;
+                    const ext = urlPath.split('.').pop() || 'png';
+                    const filename = `image_${i + 1}.${ext.split('?')[0]}`;
+                    updateProgress(
+                        50 + (25 * (i + 1) / Math.max(resources.images.length, 1)),
+                        'Downloading images...',
+                        imgUrl
+                    );
+                    await downloadResource(imgUrl, `images/${filename}`, 'image', true);
+                    completedTasks++;
+                }
+
+                // Step 6: Download fonts
+                updateProgress(75, 'Downloading fonts...');
+                const fontsFolder = zip.folder('fonts');
+                for (let i = 0; i < resources.fonts.length; i++) {
+                    const fontUrl = resources.fonts[i];
+                    const urlPath = new URL(fontUrl).pathname;
+                    const ext = urlPath.split('.').pop() || 'woff2';
+                    const filename = `font_${i + 1}.${ext.split('?')[0]}`;
+                    updateProgress(
+                        75 + (15 * (i + 1) / Math.max(resources.fonts.length, 1)),
+                        'Downloading fonts...',
+                        fontUrl
+                    );
+                    await downloadResource(fontUrl, `fonts/${filename}`, 'font', true);
+                    completedTasks++;
+                }
+
+                // Step 7: Generate ZIP
+                updateProgress(90, 'Generating ZIP file...');
+                const zipContent = await zip.generateAsync({ 
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                }, (metadata) => {
+                    updateProgress(90 + (metadata.percent * 0.1), 'Compressing files...', `${Math.round(metadata.percent)}%`);
+                });
+
+                // Store ZIP blob for manual download
+                generatedZipBlob = zipContent;
+                generatedZipFilename = `${hostname}_source.zip`;
+
+                // Step 8: Show success and trigger download
+                updateProgress(100, 'Download ready!');
+                spinnerIcon.className = 'fas fa-check-circle text-green-400';
+                
+                // Show ZIP info
+                zipInfo.textContent = `📦 ${generatedZipFilename} (${formatSize(zipContent.size)}) - ${filesList.children.length} files`;
+                
+                successSection.classList.remove('hidden');
+                
+                // Try automatic download using our reliable method
+                try {
+                    downloadBlob(zipContent, generatedZipFilename);
+                } catch (downloadError) {
+                    console.warn('Auto-download failed, use manual button:', downloadError);
+                }
+                
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Form submission handler
+        urlForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            // Validate URL
+            try {
+                new URL(url);
+            } catch {
+                showError('Please enter a valid URL (e.g., https://example.com)');
+                return;
+            }
+
+            // Reset UI
+            hideError();
+            successSection.classList.add('hidden');
+            filesSection.classList.add('hidden');
+            progressSection.classList.remove('hidden');
+            spinnerIcon.className = 'fas fa-spinner fa-spin text-indigo-400';
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            try {
+                await processWebsite(url);
+            } catch (error) {
+                console.error('Error:', error);
+                showError(error.message || 'Failed to download website. The site may be blocking requests or using unsupported technologies.');
+            } finally {
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download';
+            }
+        });
+
+        // Example URL buttons (optional enhancement)
+        urlInput.addEventListener('focus', function() {
+            this.select();
+        });
+    </script>
+</body>
+</html>
